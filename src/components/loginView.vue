@@ -74,7 +74,7 @@ export default {
             isCounting: false,  // 是否在倒计时中
       countdown: 5,      // 倒计时时长（秒）
       timer: null ,        // 计时器对象
-            captchaImage: '',
+      captchaImage: '',
       captchaCode: '',
       timestamp: Date.now(), // 用于强制刷新图片
             form:{
@@ -121,6 +121,9 @@ export default {
     clearInterval(this.timer);
   },
     methods: {
+    toRegister(){
+
+    },
         startCountdown() {
       this.isCounting = true;
       this.countdown = 3; // 重置倒计时
@@ -150,7 +153,7 @@ export default {
                if(!valid) return;
                console.log(this.seesionId);
                axios
-            .post("http://192.168.3.226:1111/api/login",{
+            .post("http://localhost:1111/api/login",{
                 account:this.form.account,
                 password:this.form.password,
                 sessionId:this.sessionId,
@@ -188,7 +191,7 @@ export default {
         refreshCaptcha() {
         this.sessionId = crypto.randomUUID();
       this.timestamp = Date.now();
-      this.captchaImage = `http://192.168.3.226:1111/api/Imgcode?timestamp=${Date.now()}&sessionId=${this.sessionId}`;
+      this.captchaImage = `http://localhost:1111/api/Imgcode?timestamp=${Date.now()}&sessionId=${this.sessionId}`;
       this.captchaCode = '';
     },
     
@@ -196,7 +199,6 @@ export default {
     mounted() {
        
     this.refreshCaptcha();
-   
   },
 }
 </script>

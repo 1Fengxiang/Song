@@ -133,6 +133,7 @@ import axios from 'axios';
 export default {
   data() {
     return {
+      playMode: 1,
       fileList:[],
       uploadProgress: 0,
       imageUploadProgress: 0,
@@ -172,12 +173,35 @@ export default {
     this.fetchAlbums();
   },
   methods: {
+     getPlayModeIcon() {
+      switch (this.playMode) {
+        case 0: return 'el-icon-refresh'; // 单曲循环
+        case 1: return 'el-icon-sort';    // 顺序播放
+        case 2: return 'el-icon-s-operation';    // 随机播放
+        default: return 'el-icon-sort';
+      }
+    },
+       togglePlayMode() {
+      // 循环切换播放模式：顺序 → 随机 → 单曲
+      this.playMode = (this.playMode + 1) % 3;
+      this.saveToLocalStorage();
+      
+      
+    },
+     getPlayModeTitle() {
+      switch (this.playMode) {
+        case 0: return '单曲循环';
+        case 1: return '顺序播放';
+        case 2: return '随机播放';
+        default: return '顺序播放';
+      }
+    },
    handleImageChange(file) {
       if (file) {
        const formData = new FormData();
       formData.append('file', file.raw);
       this.imageUploadProgress = 0;
-      axios.post('http://192.168.3.226:1111/api/upload/image', formData)
+      axios.post('http://localhost:1111/api/upload/image', formData)
       .then(response => {
        this.song.reviewImg=response.data.data
         // console.log(this.song.song_img);
@@ -196,7 +220,7 @@ export default {
        const formData = new FormData();
       formData.append('file', file.raw);
     console.log(file.raw); // File 对象，包含 name/size/type 等属性
-     axios.post('http://192.168.3.226:1111/api/upload/music', formData)
+     axios.post('http://localhost:1111/api/upload/music', formData)
      
       .then(response => {
         this.song.reviewFilepath=response.data.data;
@@ -213,7 +237,7 @@ export default {
     },
     fetchSingers() {
       // 调用API获取歌手列表
-      axios.get('http://192.168.3.226:1111/api/upload/singer').then(response => {
+      axios.get('http://localhost:1111/api/upload/singer').then(response => {
         console.log(response.data);
         
         this.singers = response.data.data;
@@ -223,7 +247,7 @@ export default {
     },
     fetchAlbums() {
       // 调用API获取专辑列表
-     axios.get('http://192.168.3.226:1111/api/upload/albums').then(response => {
+     axios.get('http://localhost:1111/api/upload/albums').then(response => {
         this.albums = response.data.data;
       }).catch(error => {
         console.error('获取专辑列表失败:', error);
@@ -385,7 +409,7 @@ export default {
           this.loading = true;
           console.log(this.song);
           
-          axios.post('http://192.168.3.226:1111/api/upload/submit', this.song)
+          axios.post('http://localhost:1111/api/upload/submit', this.song)
             .then(response => {
                 console.log(response);
                 
@@ -587,5 +611,24 @@ body {
   .page-header {
     height: 150px;
   }
+}
+
+
+.play-mode-btn {
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 10px;
+}
+
+.play-mode-btn:hover {
+  color: #409EFF;
+  transform: scale(1.1);
+}
+
+/* 单曲循环特殊样式 */
+.play-mode-btn.el-icon-refresh {
+  animation: rotate 2s linear infinite;
 }
 </style>

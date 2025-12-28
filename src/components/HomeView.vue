@@ -10,12 +10,12 @@
   text-color="#fff"
   active-text-color="#ffd04b">
   <span class="title_text">风闲</span>
-  <el-menu-item index="1">音乐中心</el-menu-item>
+   <router-link :to="{path:'/api/home'}" class="del-decoration"><el-menu-item index="1">音乐中心</el-menu-item></router-link>
     <router-link :to="{ path: '/api/music', query: { id: data!=null?data.userId:0 } }" class="del-decoration">
       <el-menu-item index="2" >我的音乐</el-menu-item>
     </router-link>
-   <router-link :to="{path:'/api/review'}" class="del-decoration"><el-menu-item index="3" >排行榜</el-menu-item></router-link>
-  <el-menu-item index="4" @click="handleRedirect" class="del-decoration">我也不知道填啥</el-menu-item>
+   <router-link :to="{path:'/api/ranking'}" class="del-decoration"><el-menu-item index="3" >排行榜</el-menu-item></router-link>
+  <router-link :to="{path:'/api/review'}" class="del-decoration"><el-menu-item index="4"  >上传音乐</el-menu-item></router-link>
   <div class="autocomplete-container">
     <el-autocomplete 
       class="inline-input"
@@ -97,7 +97,34 @@
       </div>
     </div>
     <i class="el-icon-s-promotion" style="margin: 50px 0px 0px 30px; color: grey;">个性化推荐</i>
+    
     <hr style="border: none; border-top: 3px solid red; width: 98%; margin: 20px auto; display: block;">
+    
+   
+    <div class="song-total-box" v-for="outerIndex in recommend.length>4?2:1" :key="`outer-${outerIndex}`">
+  <div v-for="index in 4" 
+       :key="`inner-${outerIndex}-${index}`" 
+       :class="outerIndex === 2 ? 'new-class' : 'song-img'">
+    <router-link v-if="recommend[(outerIndex-1)*4+index-1]" 
+                 style="text-decoration: none !important;" 
+                 :to="{ path: '/api/songList', query: { id: recommend[(outerIndex-1)*4+index-1].listId } }">
+      <a target="_self">
+        <el-image class="everysongs"
+                  v-if="recommend[(outerIndex-1)*4+index-1]"
+                  :src="recommend[(outerIndex-1)*4+index-1].listImg"
+                  fit="cover"
+                  style="width: 160px; height: 160px">
+        </el-image>
+      </a>
+      <el-link v-if="recommend[(outerIndex-1)*4+index-1]" 
+               target="_blank" 
+               style="font-size: 14px;" 
+               class="custom-link">
+        {{ recommend[(outerIndex-1)*4+index-1].listTitle }}
+      </el-link>
+    </router-link>
+  </div>
+</div>
   </div>
 
   <div>
@@ -139,6 +166,9 @@
       <audio ref="audio" :src="audioSrc" preload="auto" @loadedmetadata="setDuration" @timeupdate="updateProgress"  id="audio"  @ended="playNext" ></audio>
     <div class="controls">
       <i class="el-icon-caret-left icon-button"  @click="switchSongs(-1)"></i>
+
+       
+
       <i @click="play" class="el-icon-video-play icon-button" v-if="this.$store.state.isplay" ></i>
       <i @click="pause" v-if="!this.$store.state.isplay" class="el-icon-video-pause icon-button" ></i>
       <i class="el-icon-caret-right icon-button" @click="switchSongs(1)" style="margin-right: 40px;"></i>
@@ -148,7 +178,7 @@
       <div
       class="heart"
       :class="{ active: getActive(musicId) }"
-      @click="toggleHeart(musicId)"
+      @click="toggleHeart(musicId,singerId)"
     >
       &#9829;
     </div>
@@ -167,6 +197,13 @@
          step="0.01" 
          @input="changeVolume" 
          class="volume-slider">
+
+         <i style="" 
+        class="icon-button play-mode-btn" 
+        :class="getPlayModeIcon()" 
+        @click="togglePlayMode"
+        :title="getPlayModeTitle()"
+      ></i>
     </div>
   </div>
  
@@ -208,7 +245,7 @@
                 class="play-btn"
                 @click.stop="playSongTemp(song.songFilepath,index,0)"
               >
-                {{ currentSong && currentSong.songId === song.songId && isPlaying ? '❚❚' : '▶' }}
+                {{ currentSong && currentSong.songId === song.songId && !isPlaying ? '❚❚' : '▶' }}
               </button>
             </div>
           </div>
@@ -227,7 +264,7 @@
           </div>
             <div  class="lyric-container">
                 <span style="margin-top: 100px; margin-left: 160px; font-size: 30px;">{{this.$store.state.title}}</span>
-                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:风闲</span>
+                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{this.$store.state.songs[this.$store.state.palySongindex].songSinger}}</span>
                 <span style="margin-top: 10px; margin-left: 150px; font-size: 20px;"> <button size="small" @click="openCommentDrawer" >评论</button></span>
                 
                 <div class="lyricScroll">
@@ -352,13 +389,19 @@ export default {
     data() {
       
         return {
+        // 播放模式：0-单曲循环，1-顺序播放，2-随机播放
+      playMode: 1, // 默认顺序播放
+      playList:[],
+      currentIndex:null,
+          recommend:[],
           allsongs:[],
            searchQuery: '',  // 默认搜索词
       searchResults: [],    // 搜索结果
       showModal: false,     // 是否显示弹框
       loading: false,       // 是否正在加载
-      currentSong: false,    // 当前播放的歌曲
-      isPlaying: false,      // 是否正在播放
+      currentSong: null,    // 当前播放的歌曲
+      flag:true,
+      isPlaying: true,      // 是否正在播放
         hasUnreadMessage: true,
         commentShow:0,
         Nowcomment:{},
@@ -371,6 +414,7 @@ export default {
         showCommentDrawer: false, // 控制评论抽屉的显示
         commentText: '' ,// 存储评论文本
           musicId:'',
+          singerId:'',
           music:[],
           isActive:false, // 初始状态为未激活
           songList:[],
@@ -422,9 +466,54 @@ export default {
         };
  },
     methods:{
-      handleRedirect(){
-         window.location.href = 'http://192.168.3.186:8016/';
-      },
+     getPlayModeIcon() {
+      switch (this.playMode) {
+        case 0: return 'el-icon-refresh'; // 单曲循环
+        case 1: return 'el-icon-sort';    // 顺序播放
+        case 2: return 'el-icon-s-operation';    // 随机播放
+        default: return 'el-icon-sort';
+      }
+    },
+       togglePlayMode() {
+      // 循环切换播放模式：顺序 → 随机 → 单曲
+      this.playMode = (this.playMode + 1) % 3;
+      this.saveToLocalStorage();
+      
+      
+    },
+     getPlayModeTitle() {
+      switch (this.playMode) {
+        case 0: return '单曲循环';
+        case 1: return '顺序播放';
+        case 2: return '随机播放';
+        default: return '顺序播放';
+      }
+    },
+  saveToLocalStorage() {
+      const data = {
+        playMode: this.playMode,
+        playList: this.$store.state.songs,
+        currentIndex: this.$store.state.palySongindex
+      };
+      localStorage.setItem('musicPlayerConfig', JSON.stringify(data));
+    },
+loadFromLocalStorage() {
+      const saved = localStorage.getItem('musicPlayerConfig');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          this.playMode = data.playMode || 1;
+          this.playList = data.playList || [];
+          this.currentIndex = data.currentIndex || 0;
+          
+          // 更新store中的播放列表
+          this.$store.commit('setSongs', this.playList);
+        } catch (e) {
+          console.error('加载播放配置失败:', e);
+        }
+      }
+    },
+
       handleAvatarHover(){
         this.$store.state.haveAnymsg=false
       },
@@ -445,7 +534,7 @@ export default {
        {
       
         this.replyShow=false;
-      axios.post("http://192.168.3.226:1111/api/comment",{
+      axios.post("http://localhost:1111/api/comment",{
         commId:this.Nowcomment.commId,
         commDetails:this.replytext,
           commUserid:this.data.userId,
@@ -508,7 +597,7 @@ export default {
     },
     loadComment()
     {
-      axios.get("http://192.168.3.226:1111/api/comments",
+      axios.get("http://localhost:1111/api/comments",
         {
           params:{
             id:JSON.parse(localStorage.getItem('Nowsong')).songId,
@@ -550,11 +639,12 @@ export default {
        else
        {
         
-        axios.post("http://192.168.3.226:1111/api/comment",{
+        axios.post("http://localhost:1111/api/comment",{
           commDetails:this.commentText,
           commUserid:this.data.userId,
           commType:1, 
-          commTargetid:JSON.parse(localStorage.getItem('Nowsong')).songId
+          commTargetid:JSON.parse(localStorage.getItem('Nowsong')).songId,
+          singerId:JSON.parse(localStorage.getItem('Nowsong')).songSinger
         },{
           headers:{
             "token":user.token
@@ -597,26 +687,29 @@ export default {
 
 
       
-      toggleHeart: _.throttle(async function(songId) {
-   
+      toggleHeart: _.throttle(async function(songId,singerId) {
+       
+        
       if(this.data)
       {
         if(!this.music.includes(songId))
    {this.$message('已添加我喜欢的音乐');
      this.music.push(songId);
-     axios.put("http://192.168.3.226:1111/api/addmusic",{
+     axios.put("http://localhost:1111/api/addmusic",{
         userId:this.data.userId,
-        songId:songId 
+        songId:songId ,
+        singerId:singerId
      });
    }
   else
   {
    this.$message('已取消收藏');
    this.music = this.music.filter(song => song !== songId); 
-   axios.delete("http://192.168.3.226:1111/api/delmusic",{
+   axios.delete("http://localhost:1111/api/delmusic",{
     data: {
         userId: this.data.userId,
-        songId: songId
+        songId: songId,
+        singerId:singerId
     }
      });
   }
@@ -707,7 +800,10 @@ getActive(songId)
       playNext(){ //播放完后自动播放下一首
         console.log("下一首");
         
-        this.switchSongs(1);
+        if(this.playMod===0)
+          this.switchSongs(0);
+        else
+          this.switchSongs(1);
       },
       getLyric(text)  //歌词的处理
       {
@@ -807,27 +903,82 @@ getActive(songId)
       
     },
     playSongTemp(song,index,flag){
+      console.log("这是temp");
+      console.log(this.allsongs);
+      
+      
+      if(this.isPlaying==false)
+    {this.isPlaying=!this.isPlaying;
+        this.pause();
+    }
+      else
+    {   this.playSong(song,index);
+        this.isPlaying=!this.isPlaying;
+          
+    }
       if(flag==1)
-      this.currentSong=false;
+      this.flag=true;
     else
-     this.currentSong=true;
-       this.playSong(song,index);
+     this.flag=false;
+    console.log(flag);
+    
+      
     },
       playSong(song,index){ 
-        if(this.currentSong==true)
-      {     
+      console.log("这是playMod");
+      console.log(this.playMode);
+      
+      
+        if(this.flag==false)
+      {
+        
         this.$store.commit('setSongs',this.searchResults);
+        this.currentSong=this.searchResults[index];
       }
       else
-      this.$store.commit('setSongs',this.allsongs);
-        EventBus.$emit('changeSong',song); // 触发事件，传递新歌曲
-        this.$store.state.palySongindex=index;
-        this.$store.state.isplay=false;
-        this.$store.state.img=this.$store.state.songs[index].songImg;
-        this.$store.state.title=this.$store.state.songs[index].songName;
-        this.$store.state.lyc=this.$store.state.songs[index].songLyc;
-        localStorage.setItem('Nowsong',JSON.stringify(this.$store.state.songs[index]));
-        this.musicId=JSON.parse(localStorage.getItem('Nowsong')).songId; 
+       this.$store.commit('setSongs',this.allsongs);
+
+      this.currentSong=this.$store.state.songs[index]
+      console.log(this.$store.state.songs);
+      
+      console.log(this.currentSong);
+
+        
+        if(this.playMode===1)
+        {
+              EventBus.$emit('changeSong',song); // 触发事件，传递新歌曲
+          this.$store.state.palySongindex=index;
+          this.$store.state.isplay=false;
+          this.$store.state.img=this.$store.state.songs[index].songImg;
+          this.$store.state.title=this.$store.state.songs[index].songName;
+          this.$store.state.lyc=this.$store.state.songs[index].songLyc;
+          localStorage.setItem('Nowsong',JSON.stringify(this.$store.state.songs[index]));
+          this.musicId=JSON.parse(localStorage.getItem('Nowsong')).songId; 
+          this.singerId=JSON.parse(localStorage.getItem('Nowsong')).songSinger;
+        }
+        if(this.playMode===0)
+        {
+          
+          
+          EventBus.$emit('changeSong',JSON.parse(localStorage.getItem('Nowsong')).songFilepath);
+        }
+        if(this.playMode===2)
+        {
+          let min = Math.ceil(0);
+          let max = Math.floor(this.$store.state.songs.length-1);
+          let randomIndex = Math.floor(Math.random() * (max - min + 1)) + min;
+          
+          this.$store.state.palySongindex=randomIndex;
+          this.$store.state.isplay=false;
+          this.$store.state.img=this.$store.state.songs[randomIndex].songImg;
+          this.$store.state.title=this.$store.state.songs[randomIndex].songName;
+          this.$store.state.lyc=this.$store.state.songs[randomIndex].songLyc;
+          localStorage.setItem('Nowsong',JSON.stringify(this.$store.state.songs[randomIndex]));
+          this.musicId=JSON.parse(localStorage.getItem('Nowsong')).songId; 
+          this.singerId=JSON.parse(localStorage.getItem('Nowsong')).songSinger;
+          EventBus.$emit('changeSong',this.$store.state.songs[randomIndex].songFilepath);
+        }
+    
       },
       updateSong(totalTime)
       {
@@ -885,8 +1036,8 @@ getActive(songId)
       this.showModal = true
       this.searchResults = [] // 清空之前的结果
 
-      this.currentSong=false;
-       axios.post("http://192.168.3.226:1111/api/history",{
+      this.flag=false;
+       axios.post("http://localhost:1111/api/history",{
         name:this.searchQuery,
         userId:this.data.userId
       }).then(()=>{
@@ -903,9 +1054,10 @@ getActive(songId)
       },
       getMockData(query) {
         // 模拟搜索结果
-        axios.get("http://192.168.3.226:1111/api/search",{
+        axios.get("http://localhost:1111/api/search",{
           params:{
-            name:query  
+            name:query,
+            userId:this.data.userId
           }
         }).then((result)=>{
           this.searchResults = result.data.data;
@@ -931,6 +1083,7 @@ getActive(songId)
           this.$router.push('/api/msg');
       },
       play() {
+        this.isPlaying=false;
         if(this.duration==0)
       {
         EventBus.$emit('changeSong',JSON.parse(localStorage.getItem('Nowsong')).songFilepath);
@@ -946,6 +1099,7 @@ getActive(songId)
        
     },
     pause() {
+      this.isPlaying=true;
       this.$parent.$refs.MusicPlay.pause();
       this.$store.state.isplay=true;
      
@@ -1002,7 +1156,7 @@ getActive(songId)
     },
   },
        mounted() {
-        axios.get("http://192.168.3.226:1111/api/home").then((result)=>
+        axios.get("http://localhost:1111/api/home").then((result)=>
       {
          this.allsongs=result.data.data;
          this.$store.commit('setSongs',result.data.data);
@@ -1014,10 +1168,22 @@ getActive(songId)
           //console.log(this.$store.state.songs);
           this.$store.state.isShow=true;
       });
-        
+      
+      axios.get("http://localhost:1111/api/recommend/playlist",
+        {
+          params:{
+            userId:JSON.parse(localStorage.getItem('User')).userId,
+          }
+        }
+      ).then((res)=>
+      {
+        this.recommend=res.data.data
+          console.log(res);
+          
+      });
       if(JSON.parse(localStorage.getItem('User'))!=null)
       {
-        axios.get("http://192.168.3.226:1111/api/flag",{
+        axios.get("http://localhost:1111/api/flag",{
           params:{
             id:JSON.parse(localStorage.getItem('User')).userId
           }
@@ -1031,7 +1197,7 @@ getActive(songId)
         
       });
       }
-         axios.get("http://192.168.3.226:1111/api/getHistory",{
+         axios.get("http://localhost:1111/api/getHistory",{
            params: {
         userId: JSON.parse(localStorage.getItem('User')).userId
       }
@@ -1040,21 +1206,21 @@ getActive(songId)
            this.restaurants=res.data.data;
         });
         this.musicId=JSON.parse(localStorage.getItem('Nowsong')).songId; 
-       
+        this.singerId=JSON.parse(localStorage.getItem('Nowsong')).songSinger;
        
        this.$store.state.img=JSON.parse(localStorage.getItem('Nowsong')).songImg;
        this.$store.state.title=JSON.parse(localStorage.getItem('Nowsong')).songName;
        this.$store.state.lyc=JSON.parse(localStorage.getItem('Nowsong')).songLyc;
       
          
-        axios.get("http://192.168.3.226:1111/api/List"   
+        axios.get("http://localhost:1111/api/List"   
         ).then((result)=>{
            this.songList=result.data.data; 
            console.log(this.songList);
            
       });
     
-      
+      this.loadFromLocalStorage();
 
       
         this.doms.audio = document.getElementById('audio');
@@ -1075,7 +1241,7 @@ getActive(songId)
   
   if(this.data)
   {
-    axios.get("http://192.168.3.226:1111/api/music",{
+    axios.get("http://localhost:1111/api/music",{
         params:{
           userId:this.data.userId
         }
@@ -2023,5 +2189,27 @@ input[type="range"] {
   text-align: center;
   padding: 20px;
   color: #666;
+}
+
+
+
+
+
+.play-mode-btn {
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 10px;
+}
+
+.play-mode-btn:hover {
+  color: #409EFF;
+  transform: scale(1.1);
+}
+
+/* 单曲循环特殊样式 */
+.play-mode-btn.el-icon-refresh {
+  animation: rotate 2s linear infinite;
 }
 </style>

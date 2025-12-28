@@ -1,179 +1,3 @@
-// import Vue from 'vue';
-// import Vuex from 'vuex';
-// import { EventBus } from '@/eventBus';
-// import { Howl } from 'howler'; // 引入 howler.js
-// Vue.use(Vuex);
-
-
-
-// export default new Vuex.Store({
-//   state: {
-//      audioEnabled: true,
-//      messageSound: new Howl({  // 🔥 全局维护一个实例
-//       src: [require('@/assets/消息提示.mp3')],
-//       volume: 0.5,
-//       preload: true,
-//       onloaderror: (id, err) => {
-//         console.error("音效加载失败:", err);
-//       }
-//     }),
-//     isplay: true, //是否在播放
-//     songs:[{
-//       songAlbum: "",
-//       songFilepath: "",
-//       songId: "",
-//       songImg: "",
-//       songLyc: "",
-//       songName: "",
-//       songSinger: "",
-//       songNumber:"",
-//       songType:"",
-//       songTime:""
-//     },],
-//   isShow:false,
-//   palySongindex:0,
-//   img:"",
-//   title:"",
-//   lyc:"",
-//   finalLyric:[{time:"",lyricContent:""},],
-//   unreadCount: 0,     // 未读消息数
-//   ws: null,           // WebSocket实例
-//   notifications: [],   // 消息列表
-//   haveAnymsg:false,   //是否有未读消息
-//   message:''
-//   },
-//   mutations: {
-//     TOGGLE_AUDIO(state) {
-//       state.audioEnabled = !state.audioEnabled;
-//     },
-//     setSongs(state, songs) {
-//       state.songs = songs;
-//     },
-//     setisShow(state,isShow)
-//     {
-//       state.isShow=isShow;
-//     },
-//     setImg(state,img)
-//     {
-//       console.log("这里记录了头像");
-      
-//       state.img=img;
-//     },
-//     setTitle(state,title)
-//     {
-//       state.title=title;
-//     },
-//     setLyc(state,lyc)
-//     {
-//       state.lyc=lyc;
-//     },
-
-//     SET_WS(state, ws) {
-//       state.ws = ws
-//     },
-//     ADD_NOTIFICATION(state, msg) {
-//       state.notifications.unshift(msg)
-//       if (!msg.isRead) state.unreadCount++
-//     },
-//     MARK_READ(state, msgId) {
-//       const msg = state.notifications.find(m => m.id === msgId)
-//       if (msg) {
-//         msg.isRead = true
-//         state.unreadCount--
-//       }
-//     },
-//     RESET(state) {
-//       state.unreadCount = 0
-//       state.notifications = []
-//       if (state.ws) state.ws.close()
-//     },
-//     SET_MSG(state,flag){
-//       state.haveAnymsg=flag
-//     },
-//     SET_Message(state,message){
-//       state.message=message
-//     }
-//   },
-//   actions: {
-//      initWebSocket({ commit, state }) {
-//       const user=JSON.parse(localStorage.getItem('User'));
-//       if(user!=null)
-//       {
-       
-//           const unlockAudio = () => {
-//       if (state.messageSound.state() === "loaded") {
-//         console.log("播放");
-        
-//         state.messageSound.play();  // 静音播放一次以解锁
-//         state.messageSound.stop();
-//         document.removeEventListener("click", unlockAudio); // 解绑
-//       }
-//     };
-//     document.addEventListener("click", unlockAudio);
-
-//         console.log("websocket已开启");
-      
-//         // 确保用户已登录
-//         const userId =user.userId
-//         if (!userId) return
-  
-//         const ws = new WebSocket(`ws://192.168.3.226:1111/ws?userId=${userId}`);
-//         ws.onopen = (event) =>{
-//          console.log(event);
-       
-//       };
-    
-//         ws.onmessage = (event) => {
-        
-          
-          
-//           // const msg = JSON.parse(event.data)
-//           // commit('ADD_NOTIFICATION', {
-//           //   ...msg,
-//           //   isRead: false,
-//           //   id: Date.now()
-//           // })
-//           // console.log(event.data);
-//           commit('SET_Message', event.data);
-//           commit('SET_MSG', true);
-//           EventBus.$emit('new-message', event.data); // 触发全局事件
-        
-//             if (state.audioEnabled) {
-//     try {
-//       if (state.messageSound.state() === "loaded") {
-//         state.messageSound.play();
-//       } else {
-//         // 如果音效未加载，尝试重新加载
-//         state.messageSound.load();
-//         console.warn("音效未就绪，正在重新加载...");
-//       }
-//     } catch (e) {
-//       console.error("音效播放失败:", e);
-//     }
-//   }
-         
-//         }
-       
-//         ws.onclose = () => {
-//           setTimeout(() => store.dispatch('initWebSocket'), 3000)
-//         }
-  
-//         commit('SET_WS', ws)
-//       }
-//       else
-//       {
-//         console.log("未登录");
-//       } 
-//     }
-     
- 
-//   },
-//   getters: {
-//     isAudioEnabled: state => state.audioEnabled
-//   }
-
-
-// });
 import Vue from 'vue';
 import Vuex from 'vuex';
 import { EventBus } from '@/eventBus';
@@ -236,6 +60,8 @@ const store = new Vuex.Store({
     
     setSongs(state, songs) {
       state.songs = songs;
+      console.log(songs);
+      
     },
     
     setisShow(state, isShow) {
@@ -325,7 +151,7 @@ const store = new Vuex.Store({
       }
 
       try {
-       const ws = new WebSocket(`ws://192.168.3.226:1111/ws?userId=${userId}`);
+       const ws = new WebSocket(`ws://localhost:1111/ws?userId=${userId}`);
         
         ws.onopen = (event) => {
           console.log("WebSocket连接成功", event);

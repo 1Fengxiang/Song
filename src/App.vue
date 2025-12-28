@@ -41,8 +41,8 @@ export default {
     this.$refs.MusicPlay.volume = JSON.parse(localStorage.getItem('setSong')).volume;
     
     // 新增页面可见性监听
-    document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    window.addEventListener('blur', this.handleWindowBlur);
+    // document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    // window.addEventListener('blur', this.handleWindowBlur);
   },
   beforeDestroy() {
     EventBus.$off('changeSong', this.changeSong);
@@ -75,28 +75,57 @@ export default {
     startTimer() {
    
      
-      
-      this.lastPlayTime = Date.now();
+       this.clearTimer();
+    console.log(this.duration);
+    
+    // 重置计时相关变量
+    this.lastPlayTime = Date.now();
+    this.effectivePlayTime = 0;
+    this.hasCounted = false;
+     
       this.timer = setInterval(() => {
-        
-           console.log("开始计时");
-        // 只在播放状态且未拖动时累计
-        if (!this.$refs.MusicPlay.paused && !this.isSeeking) {
-          
-          const now = Date.now();
-          this.effectivePlayTime += (now - this.lastPlayTime);
-          this.lastPlayTime = now;
-          
-          // 动态计算（支持倍速播放）
-          const requiredTime = (this.duration * 500) / (this.$refs.MusicPlay.playbackRate || 1);
-          
-          if (this.effectivePlayTime >= requiredTime && !this.hasCounted) {
-            this.incrementPlayCount();
-            this.clearTimer();
-          }
-        }
-      }, this.checkInterval);
-    },
+      this.updatePlayTime();
+    }, this.checkInterval || 1000); // 默认1秒检查一次
+  },
+   updatePlayTime() {
+  // 检查音频是否还在播放
+  if (!this.$refs.MusicPlay || this.$refs.MusicPlay.paused) {
+    console.log("音频已暂停，停止计时");
+    this.clearTimer();
+    return;
+  }
+  
+  // 只在播放状态且未拖动时累计
+  if (!this.$refs.MusicPlay.paused && !this.isSeeking) {
+    const now = Date.now();
+    
+    // 计算实际播放时长（考虑暂停、拖动等）
+    if (this.lastPlayTime) {
+      this.effectivePlayTime += (now - this.lastPlayTime);
+    }
+    
+    this.lastPlayTime = now;
+    
+    // 转换为秒，便于理解和比较
+    const playedSeconds = this.effectivePlayTime / 1000;
+    
+    // console.log(`累计播放时间: ${playedSeconds.toFixed(1)}秒`);
+    
+    // 计算需要的时间（秒）：总时长的一半 ÷ 播放速度
+    // this.duration 是秒，playbackRate 是倍速
+    const requiredSeconds = (this.duration * 0.5) / (this.$refs.MusicPlay.playbackRate || 1);
+    
+    // console.log(`需要时间: ${requiredSeconds.toFixed(1)}秒, 已播放: ${playedSeconds.toFixed(1)}秒`);
+    
+    // 比较秒数
+    if (playedSeconds >= requiredSeconds && !this.hasCounted) {
+      console.log("达到播放条件，增加播放次数");
+      this.incrementPlayCount();
+      this.clearTimer();
+      this.hasCounted = true;
+    }
+  }
+},
     clearTimer() {
       if (this.timer) {
         clearInterval(this.timer);
@@ -112,15 +141,15 @@ export default {
       }, 200);
     },
     handleVisibilityChange() {
-      if (document.hidden) {
-        // 页面隐藏时暂停计时
-        if (this.timer) {
-          this.clearTimer();
-        }
-      } else if (!this.$refs.MusicPlay.paused) {
-        // 页面重新显示时恢复计时
-        this.startTimer();
-      }
+      // if (document.hidden) {
+      //   // 页面隐藏时暂停计时
+      //   if (this.timer) {
+      //     this.clearTimer();
+      //   }
+      // } else if (!this.$refs.MusicPlay.paused) {
+      //   // 页面重新显示时恢复计时
+      //   this.startTimer();
+      // }
     },
     handleWindowBlur() {
       // 窗口失去焦点时同样暂停计时
@@ -132,8 +161,11 @@ export default {
         songId: 1,
         duration: this.duration
       });
-       axios.put("http://192.168.3.226:1111/api/addNumber",{
+       axios.put("http://localhost:1111/api/addNumber",{
             songId:JSON.parse(localStorage.getItem('Nowsong')).songId,
+            userId:JSON.parse(localStorage.getItem('User')).userId,
+            
+            playTime:parseInt(this.duration)
           },
          );
     },

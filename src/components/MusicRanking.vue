@@ -10,16 +10,16 @@
   text-color="#fff"
   active-text-color="#ffd04b">
   <span class="title_text">风闲</span>
-  <router-link :to="{ path: '/api/home'}" class="del-decoration"><el-menu-item index="1">音乐中心</el-menu-item></router-link>
+  <router-link :to="{path:'/api/home'}" class="del-decoration"><el-menu-item index="1">音乐中心</el-menu-item></router-link>
     <router-link :to="{ path: '/api/music', query: { id: data!=null?data.userId:0 } }" class="del-decoration">
       <el-menu-item index="2" >我的音乐</el-menu-item>
     </router-link>
-   <el-menu-item index="3"  class="del-decoration">排行榜</el-menu-item>
-  <el-menu-item index="4" @click="handleRedirect">我也不知道填啥</el-menu-item>
+   <router-link :to="{path:'/api/ranking'}" class="del-decoration"><el-menu-item index="3" >排行榜</el-menu-item></router-link>
+  <router-link :to="{path:'/api/upload'}" class="del-decoration"><el-menu-item index="4"  >上传音乐</el-menu-item></router-link>
   <div class="autocomplete-container">
     <el-autocomplete 
       class="inline-input"
-      v-model="Search"
+      v-model="searchQuery"
       :fetch-suggestions="querySearch"
       placeholder="请输入内容"
       @select="handleSelect"
@@ -78,7 +78,7 @@
         v-for="(song, index) in filteredSongs" 
         :key="song.songId"
         class="music-item"
-        :class="{ playing: currentSong && currentSong.id === song.songId }"
+        :class="{ playing: nowSong && nowSong.id === song.songId }"
         @click="playSong(song.songFilepath,index)"
       >
         <div class="rank-number" :class="getRankClass(index + 1)">
@@ -150,9 +150,62 @@
          step="0.01" 
          @input="changeVolume" 
          class="volume-slider">
+    <i style="" 
+        class="icon-button play-mode-btn" 
+        :class="getPlayModeIcon()" 
+        @click="togglePlayMode"
+        :title="getPlayModeTitle()"
+      ></i>
     </div>
   </div>
  
+<div class="modal-mask" v-if="showModal" @click.self="closeModal">
+      <div class="music-modal">
+        <div class="modal-header">
+          <span>搜索结果</span>
+          <button class="close-btn" @click="closeModal">&times;</button>
+        </div>
+        
+        <div class="search-result-content">
+          <div class="result-count" v-if="!loading">
+            找到 {{ searchResults.length }} 条与 "{{ searchQuery }}" 相关的结果
+          </div>
+          
+          <div class="loading" v-if="loading">
+            正在搜索中...
+          </div>
+          
+          <div class="no-result" v-else-if="searchResults.length === 0">
+            没有找到相关歌曲
+          </div>
+          
+          <div class="song-list" v-else>
+            <div 
+              class="song-item" 
+              v-for="song,index in searchResults" 
+              :key="song.songId"
+              :class="{ active: currentSong && currentSong.songId === song.songId }"
+              @click="playSongTemp(song.songFilepath,index,0)"
+            >
+              <img :src="song.songImg" class="song-cover">
+              <div class="song-info">
+                <div class="song-name">{{ song.songName }}</div>
+                <div class="song-artist">{{ song.songSinger }} - {{ song.songAlbum }}</div>
+              </div>
+              <div class="song-duration">{{ formatDuration(song.songTime) }}</div>
+              <button 
+                class="play-btn"
+                @click.stop="playSongTemp(song.songFilepath,index,0)"
+              >
+                {{ currentSong && currentSong.songId === song.songId && isPlaying ? '❚❚' : '▶' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
   <transition name="slide">
       <div v-show="lyric" class="drawer">
         <div class="header">
@@ -164,7 +217,7 @@
           </div>
             <div  class="lyric-container">
                 <span style="margin-top: 100px; margin-left: 160px; font-size: 30px;">{{this.$store.state.title}}</span>
-                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:风闲</span>
+                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{this.$store.state.songs[this.$store.state.palySongindex].songSinger}}</span>
                 <span style="margin-top: 10px; margin-left: 150px; font-size: 20px;"> <button size="small" @click="openCommentDrawer" >评论</button></span>
                 
                 <div class="lyricScroll">
@@ -285,6 +338,11 @@ import { EventBus } from '@/eventBus';
 export default {
   data() {
     return {
+     playMode: 1, // 默认顺序播放
+      showModal: false,     // 是否显示弹框
+      loading: false,        // 搜索加载状态
+         searchQuery: '',  // 默认搜索词
+        searchResults: [],    // 搜索结果
         hasUnreadMessage: true,
           commentShow:0,
         Nowcomment:{},
@@ -350,6 +408,7 @@ export default {
       ],
       allsongs:[],
       currentSong: null,
+      nowSong:null,
       isPlaying: false,
       progress: 0,
       volume: 70,
@@ -367,6 +426,29 @@ export default {
     },
   },
   methods: {
+     getPlayModeIcon() {
+      switch (this.playMode) {
+        case 0: return 'el-icon-refresh'; // 单曲循环
+        case 1: return 'el-icon-sort';    // 顺序播放
+        case 2: return 'el-icon-s-operation';    // 随机播放
+        default: return 'el-icon-sort';
+      }
+    },
+       togglePlayMode() {
+      // 循环切换播放模式：顺序 → 随机 → 单曲
+      this.playMode = (this.playMode + 1) % 3;
+      this.saveToLocalStorage();
+      
+      
+    },
+     getPlayModeTitle() {
+      switch (this.playMode) {
+        case 0: return '单曲循环';
+        case 1: return '顺序播放';
+        case 2: return '随机播放';
+        default: return '顺序播放';
+      }
+    },
     getRankClass(rank) {
       return {
         'top1': rank === 1,
@@ -384,14 +466,14 @@ export default {
       }
     },
     prevSong() {
-      const currentIndex = this.songs.findIndex(song => song.id === this.currentSong.id);
+      const currentIndex = this.songs.findIndex(song => song.id === this.nowSong.id);
       const prevIndex = (currentIndex - 1 + this.songs.length) % this.songs.length;
-      this.playSong(this.songs[prevIndex]);
+      this.playSong(this.songs[prevIndex].filteredSongs);
     },
     nextSong() {
-      const currentIndex = this.songs.findIndex(song => song.id === this.currentSong.id);
+      const currentIndex = this.songs.findIndex(song => song.id === this.nowSong.id);
       const nextIndex = (currentIndex + 1) % this.songs.length;
-      this.playSong(this.songs[nextIndex]);
+      this.playSong(this.songs[nextIndex].filteredSongs);
     },
    
     toggleLike(song) {
@@ -421,7 +503,7 @@ export default {
        {
       
         this.replyShow=false;
-      axios.post("http://192.168.3.226:1111/api/comment",{
+      axios.post("http://localhost:1111/api/comment",{
         commId:this.Nowcomment.commId,
         commDetails:this.replytext,
           commUserid:this.data.userId,
@@ -484,7 +566,7 @@ export default {
     },
     loadComment()
     {
-      axios.get("http://192.168.3.226:1111/api/comments",
+      axios.get("http://localhost:1111/api/comments",
         {
           params:{
             id:JSON.parse(localStorage.getItem('Nowsong')).songId,
@@ -526,7 +608,7 @@ export default {
        else
        {
         
-        axios.post("http://192.168.3.226:1111/api/comment",{
+        axios.post("http://localhost:1111/api/comment",{
           commDetails:this.commentText,
           commUserid:this.data.userId,
           commType:1, 
@@ -580,7 +662,7 @@ export default {
         if(!this.music.includes(songId))
    {this.$message('已添加我喜欢的音乐');
      this.music.push(songId);
-     axios.put("http://192.168.3.226:1111/api/addmusic",{
+     axios.put("http://localhost:1111/api/addmusic",{
         userId:this.data.userId,
         songId:songId 
      });
@@ -589,7 +671,7 @@ export default {
   {
    this.$message('已取消收藏');
    this.music = this.music.filter(song => song !== songId); 
-   axios.delete("http://192.168.3.226:1111/api/delmusic",{
+   axios.delete("http://localhost:1111/api/delmusic",{
     data: {
         userId: this.data.userId,
         songId: songId
@@ -784,19 +866,33 @@ getActive(songId)
     },
       playSong(song,index){
        
-      console.log(song);
-      
-      
-        if(this.currentTab!='all')
-      {
-            this.songs=this.allsongs.filter(item => item.songType === this.currentTab);
-          
+      console.log("这是进入播放");
+       if(this.currentSong==true)
+      {     
+        this.currentSong=false
+        let tempSongs = [...this.searchResults, ...this.songs];
+        
+        console.log("你会哦啊");
+        console.log(tempSongs);
+        this.$store.commit('setSongs',tempSongs);
       }
       else
-       this.songs=this.allsongs;
-       this.$store.commit('setSongs',this.songs);
-        song=this.songs[index].songFilepath;
+      {
+              if(this.currentTab!='all')
+            { console.log("进入到选择");
+            
+              console.log(this.allsongs);  
+              this.songs=this.allsongs.filter(item => item.songType === this.currentTab);
+                  
+            }
+            else{
+                  this.songs=this.allsongs;
+            }
        
+       this.$store.commit('setSongs',this.songs);
+      }
+       
+        
 
 
         EventBus.$emit('changeSong',song); // 触发事件，传递新歌曲
@@ -846,62 +942,61 @@ getActive(songId)
           return (restaurant.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0);
         };
       },
-      loadAll() {
-        return [
-          { "value": "三全鲜食（北新泾店）", "address": "长宁区新渔路144号" },
-          { "value": "Hot honey 首尔炸鸡（仙霞路）", "address": "上海市长宁区淞虹路661号" },
-          { "value": "新旺角茶餐厅", "address": "上海市普陀区真北路988号创邑金沙谷6号楼113" },
-          { "value": "泷千家(天山西路店)", "address": "天山西路438号" },
-          { "value": "胖仙女纸杯蛋糕（上海凌空店）", "address": "上海市长宁区金钟路968号1幢18号楼一层商铺18-101" },
-          { "value": "贡茶", "address": "上海市长宁区金钟路633号" },
-          { "value": "豪大大香鸡排超级奶爸", "address": "上海市嘉定区曹安公路曹安路1685号" },
-          { "value": "茶芝兰（奶茶，手抓饼）", "address": "上海市普陀区同普路1435号" },
-          { "value": "十二泷町", "address": "上海市北翟路1444弄81号B幢-107" },
-          { "value": "星移浓缩咖啡", "address": "上海市嘉定区新郁路817号" },
-          { "value": "阿姨奶茶/豪大大", "address": "嘉定区曹安路1611号" },
-          { "value": "新麦甜四季甜品炸鸡", "address": "嘉定区曹安公路2383弄55号" },
-          { "value": "Monica摩托主题咖啡店", "address": "嘉定区江桥镇曹安公路2409号1F，2383弄62号1F" },
-          { "value": "浮生若茶（凌空soho店）", "address": "上海长宁区金钟路968号9号楼地下一层" },
-          { "value": "NONO JUICE  鲜榨果汁", "address": "上海市长宁区天山西路119号" },
-          { "value": "CoCo都可(北新泾店）", "address": "上海市长宁区仙霞西路" },
-          { "value": "快乐柠檬（神州智慧店）", "address": "上海市长宁区天山西路567号1层R117号店铺" },
-          { "value": "Merci Paul cafe", "address": "上海市普陀区光复西路丹巴路28弄6号楼819" },
-          { "value": "猫山王（西郊百联店）", "address": "上海市长宁区仙霞西路88号第一层G05-F01-1-306" },
-          { "value": "枪会山", "address": "上海市普陀区棕榈路" },
-          { "value": "纵食", "address": "元丰天山花园(东门) 双流路267号" },
-          { "value": "钱记", "address": "上海市长宁区天山西路" },
-          { "value": "壹杯加", "address": "上海市长宁区通协路" },
-          { "value": "唦哇嘀咖", "address": "上海市长宁区新泾镇金钟路999号2幢（B幢）第01层第1-02A单元" },
-          { "value": "爱茜茜里(西郊百联)", "address": "长宁区仙霞西路88号1305室" },
-          { "value": "爱茜茜里(近铁广场)", "address": "上海市普陀区真北路818号近铁城市广场北区地下二楼N-B2-O2-C商铺" },
-          { "value": "鲜果榨汁（金沙江路和美广店）", "address": "普陀区金沙江路2239号金沙和美广场B1-10-6" },
-          { "value": "开心丽果（缤谷店）", "address": "上海市长宁区威宁路天山路341号" },
-          { "value": "超级鸡车（丰庄路店）", "address": "上海市嘉定区丰庄路240号" },
-          { "value": "妙生活果园（北新泾店）", "address": "长宁区新渔路144号" },
-          { "value": "香宜度麻辣香锅", "address": "长宁区淞虹路148号" },
-          { "value": "凡仔汉堡（老真北路店）", "address": "上海市普陀区老真北路160号" },
-          { "value": "港式小铺", "address": "上海市长宁区金钟路968号15楼15-105室" },
-          { "value": "蜀香源麻辣香锅（剑河路店）", "address": "剑河路443-1" },
-          { "value": "北京饺子馆", "address": "长宁区北新泾街道天山西路490-1号" },
-          { "value": "饭典*新简餐（凌空SOHO店）", "address": "上海市长宁区金钟路968号9号楼地下一层9-83室" },
-          { "value": "焦耳·川式快餐（金钟路店）", "address": "上海市金钟路633号地下一层甲部" },
-          { "value": "动力鸡车", "address": "长宁区仙霞西路299弄3号101B" },
-          { "value": "浏阳蒸菜", "address": "天山西路430号" },
-          { "value": "四海游龙（天山西路店）", "address": "上海市长宁区天山西路" },
-          { "value": "樱花食堂（凌空店）", "address": "上海市长宁区金钟路968号15楼15-105室" },
-          { "value": "壹分米客家传统调制米粉(天山店)", "address": "天山西路428号" },
-          { "value": "福荣祥烧腊（平溪路店）", "address": "上海市长宁区协和路福泉路255弄57-73号" },
-          { "value": "速记黄焖鸡米饭", "address": "上海市长宁区北新泾街道金钟路180号1层01号摊位" },
-          { "value": "红辣椒麻辣烫", "address": "上海市长宁区天山西路492号" },
-          { "value": "(小杨生煎)西郊百联餐厅", "address": "长宁区仙霞西路88号百联2楼" },
-          { "value": "阳阳麻辣烫", "address": "天山西路389号" },
-          { "value": "南拳妈妈龙虾盖浇饭", "address": "普陀区金沙江路1699号鑫乐惠美食广场A13" }
-        ];
-      },
-      FindSong()
+     
+     FindSong()
       { 
-        alert(this.Search);
+        
+        if (!this.searchQuery.trim()) return
+      
+      this.loading = true
+      this.showModal = true
+      this.searchResults = [] // 清空之前的结果
+
+      this.currentSong=false;
+       axios.post("http://localhost:1111/api/history",{
+        name:this.searchQuery,
+        userId:this.data.userId
+      }).then(()=>{
+        console.log("搜索记录已保存");
+        
+      }); 
+
+
+      // 模拟API请求延迟
+      setTimeout(() => {
+      this.getMockData(this.searchQuery)
+        this.loading = false
+        }, 800)
       },
+      getMockData(query) {
+        // 模拟搜索结果
+        axios.get("http://localhost:1111/api/search",{
+          params:{
+            name:query  
+          }
+        }).then((result)=>{
+          this.searchResults = result.data.data;
+          
+          console.log(this.searchResults);
+          
+        });
+        
+      },
+       formatDuration(seconds) {
+      const mins = Math.floor(seconds / 60)
+      const secs = seconds % 60
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+    },
+    playSongTemp(song,index,flag){
+      if(flag==1)
+      this.currentSong=false;
+    else
+     this.currentSong=true;
+       this.playSong(song,index);
+    },
+     closeModal() {
+      this.showModal = false
+    },
       handleCommand(command){
         if(command==='logout')
         {
@@ -992,7 +1087,7 @@ getActive(songId)
   created() {
     // 预加载第一首歌
     if (this.songs.length > 0) {
-      this.currentSong = this.songs[0];
+      this.nowSong = this.songs[0];
       // 实际项目中这里会初始化audio对象
       this.audio = {
         play: () => {},
@@ -1002,7 +1097,7 @@ getActive(songId)
   },
   mounted(){
     this.data=JSON.parse(localStorage.getItem('User')) || {};
-    axios.get("http://192.168.3.226:1111/api/home").then((result)=>
+    axios.get("http://localhost:1111/api/home").then((result)=>
       {
          
         
@@ -1013,11 +1108,11 @@ getActive(songId)
           //console.log(this.$store.state.songs);
           this.$store.state.isShow=true;
       });
-    axios.get("http://192.168.3.226:1111/api/ranking").then((result)=>
+    axios.get("http://localhost:1111/api/ranking").then((result)=>
       {
-         this.songs=result.data.data;
-         this.allsongs=this.songs;
-          this.$store.commit('setSongs',result.data.data);
+         
+         this.allsongs=result.data.data;
+          this.$store.commit('setSongs',this.allsongs);
       });
        
 
@@ -1027,19 +1122,12 @@ getActive(songId)
        this.$store.state.img=JSON.parse(localStorage.getItem('Nowsong')).songImg;
        this.$store.state.title=JSON.parse(localStorage.getItem('Nowsong')).songName;
        this.$store.state.lyc=JSON.parse(localStorage.getItem('Nowsong')).songLyc;
-      
-         
-       
-    
-      
-
-      
         this.doms.audio = document.getElementById('audio');
         this.doms.ul = document.getElementById('ul');
       this.doms.divcontroller = document.getElementById('divcontroller');
       this.$parent.$refs.MusicPlay.volume=JSON.parse(localStorage.getItem('setSong')).volume;
       this.setDuration();
-      this.restaurants =  this.loadAll();
+     
       this.data=JSON.parse(localStorage.getItem('User'));
      
       this.updateCountdown();
@@ -2009,5 +2097,191 @@ input[type="range"] {
 .dark {
   background-color: #faf0e6; /* 更淡的米色 */
   color: white;
+}
+
+
+
+
+.search-trigger {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+}
+
+.search-trigger input {
+  padding: 10px 15px;
+  width: 300px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+}
+
+.search-trigger button {
+  padding: 10px 20px;
+  background: #ff4e50;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.music-modal {
+  width: 90%;
+  max-width: 400px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: modalFadeIn 0.3s;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  padding: 15px 20px;
+  background-color: #ff4e50;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.search-result-content {
+  padding: 20px;
+}
+
+.result-count {
+  color: #666;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.song-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.song-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.song-item:hover {
+  background-color: #f9f9f9;
+}
+
+.song-item.active {
+  background-color: #fff0f0;
+}
+
+.song-cover {
+  width: 50px;
+  height: 50px;
+  border-radius: 5px;
+  margin-right: 15px;
+  object-fit: cover;
+}
+
+.song-info {
+  flex: 1;
+}
+
+.song-name {
+  color: #000;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.song-artist {
+  color: #666;
+  font-size: 14px;
+}
+
+.song-duration {
+  color: #666;
+  font-size: 13px;
+  margin-right: 15px;
+}
+
+.play-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #ff4e50;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.play-btn:hover {
+  background-color: #ff2e3e;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.no-result {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+
+
+.play-mode-btn {
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 10px;
+}
+
+.play-mode-btn:hover {
+  color: #409EFF;
+  transform: scale(1.1);
+}
+
+/* 单曲循环特殊样式 */
+.play-mode-btn.el-icon-refresh {
+  animation: rotate 2s linear infinite;
 }
 </style>

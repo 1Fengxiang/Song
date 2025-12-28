@@ -214,7 +214,7 @@ export default {
 
       console.log(this.currentPage);
       
-      axios.get('http://192.168.3.226:1111/api/review/list',
+      axios.get('http://localhost:1111/api/review/list',
       {
         params:{
         page: this.currentPage,
@@ -241,7 +241,7 @@ export default {
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        axios.post(`http://192.168.3.226:1111/api/review/approve/${reviewId}`)
+        axios.post(`http://localhost:1111/api/review/approve/${reviewId}`)
           .then(() => {
             this.$message.success('审核通过成功');
             this.fetchReviewList();
@@ -268,7 +268,7 @@ export default {
     confirmReject() {
       this.$refs.rejectForm.validate(valid => {
         if (valid) {
-          axios.post(`http://192.168.3.226:1111/api/review/reject/${this.currentRejectId}`).then(() => {
+          axios.post(`http://localhost:1111/api/review/reject/${this.currentRejectId}`).then(() => {
             this.$message.success('拒绝成功');
             this.rejectDialogVisible = false;
             this.fetchReviewList();

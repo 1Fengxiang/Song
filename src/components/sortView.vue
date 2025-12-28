@@ -10,14 +10,13 @@
   text-color="#fff"
   active-text-color="#ffd04b">
   <span class="title_text">风闲</span>
- <router-link to="/api/home" class="del-decoration">
-    <el-menu-item index="1">音乐中心</el-menu-item>
-  </router-link>
+  
+    <router-link :to="{path:'/api/home'}" class="del-decoration"><el-menu-item index="1">音乐中心</el-menu-item></router-link>
     <router-link :to="{ path: '/api/music', query: { id: data!=null?data.userId:0 } }" class="del-decoration">
       <el-menu-item index="2" >我的音乐</el-menu-item>
     </router-link>
-  <el-menu-item index="3" >排行榜</el-menu-item>
-  <el-menu-item index="4">我也不知道填啥</el-menu-item>
+   <router-link :to="{path:'/api/ranking'}" class="del-decoration"><el-menu-item index="3" >排行榜</el-menu-item></router-link>
+  <router-link :to="{path:'/api/upload'}" class="del-decoration"><el-menu-item index="4"  >上传音乐</el-menu-item></router-link>>
   <div class="autocomplete-container">
     <el-autocomplete 
       class="inline-input"
@@ -151,6 +150,12 @@
          step="0.01" 
          @input="changeVolume" 
          class="volume-slider">
+         <i style="" 
+        class="icon-button play-mode-btn" 
+        :class="getPlayModeIcon()" 
+        @click="togglePlayMode"
+        :title="getPlayModeTitle()"
+      ></i>
     </div>
   </div>
  
@@ -165,7 +170,7 @@
           </div>
             <div  class="lyric-container">
                 <span style="margin-top: 100px; margin-left: 160px; font-size: 30px;">{{this.$store.state.title}}</span>
-                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:风闲</span>
+                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{this.$store.state.songs[this.$store.state.palySongindex].songSinger}}</span>
                 <span style="margin-top: 10px; margin-left: 150px; font-size: 20px;"> <button size="small" @click="openCommentDrawer" >评论</button></span>
 
                 <div class="lyricScroll">
@@ -287,6 +292,7 @@ export default {
     data() {
       
         return {
+          playMode: 1,
           commentShow:0,
         Nowcomment:{},
         replyShow:false,
@@ -353,6 +359,29 @@ export default {
         };
  },
     methods:{ 
+       getPlayModeIcon() {
+      switch (this.playMode) {
+        case 0: return 'el-icon-refresh'; // 单曲循环
+        case 1: return 'el-icon-sort';    // 顺序播放
+        case 2: return 'el-icon-s-operation';    // 随机播放
+        default: return 'el-icon-sort';
+      }
+    },
+       togglePlayMode() {
+      // 循环切换播放模式：顺序 → 随机 → 单曲
+      this.playMode = (this.playMode + 1) % 3;
+      this.saveToLocalStorage();
+      
+      
+    },
+     getPlayModeTitle() {
+      switch (this.playMode) {
+        case 0: return '单曲循环';
+        case 1: return '顺序播放';
+        case 2: return '随机播放';
+        default: return '顺序播放';
+      }
+    },
       handleAvatarHover(){
         this.$store.state.haveAnymsg=false
       },
@@ -370,7 +399,7 @@ export default {
        else
        {
         this.replyShow=false;
-      axios.post("http://192.168.3.226:1111/api/comment",{
+      axios.post("http://localhost:1111/api/comment",{
         commDetails:this.replytext,
           commUserid:this.data.userId,
           commType:1, 
@@ -422,7 +451,7 @@ export default {
     },
     loadComment()
     {
-      axios.get("http://192.168.3.226:1111/api/comments",
+      axios.get("http://localhost:1111/api/comments",
         {
           params:{
             id:JSON.parse(localStorage.getItem('Nowsong')).songId,
@@ -463,7 +492,7 @@ export default {
        }
        else
        {
-        axios.post("http://192.168.3.226:1111/api/comment",{
+        axios.post("http://localhost:1111/api/comment",{
           commDetails:this.commentText,
           commUserid:this.data.userId,
           commType:1, 
@@ -522,7 +551,7 @@ export default {
         if(!this.music.includes(songId))
    {this.$message('已添加我喜欢的音乐');
      this.music.push(songId);
-     axios.put("http://192.168.3.226:1111/api/addmusic",{
+     axios.put("http://localhost:1111/api/addmusic",{
         userId:this.data.userId,
         songId:songId 
      });
@@ -531,7 +560,7 @@ export default {
   {
    this.$message('已取消收藏');
    this.music = this.music.filter(song => song !== songId); 
-   axios.delete("http://192.168.3.226:1111/api/delmusic",{
+   axios.delete("http://localhost:1111/api/delmusic",{
     data: {
         userId: this.data.userId,
         songId: songId
@@ -841,6 +870,8 @@ getActive(songId)
         }
         if(command==='Personalhome')
           this.$router.push({ path: '/api/Personalhome', query: { id: this.data.userId } });
+         if(command==='Mymsg')
+          this.$router.push('/api/msg');
       },
       play() {
         if(this.duration==0)
@@ -924,7 +955,7 @@ getActive(songId)
         this.$store.state.lyc=JSON.parse(localStorage.getItem('Nowsong')).songLyc;
          
         
-        axios.get("http://192.168.3.226:1111/api/sort",{
+        axios.get("http://localhost:1111/api/sort",{
             params:{
                 type:this.$route.query.type || ''
             }
@@ -934,7 +965,7 @@ getActive(songId)
            
       });
    
-      axios.get("http://192.168.3.226:1111/api/home").then((result)=>
+      axios.get("http://localhost:1111/api/home").then((result)=>
       {
          this.$store.commit('setSongs',result.data.data);
         
@@ -961,7 +992,7 @@ getActive(songId)
   
   if(this.data)
   {
-    axios.get("http://192.168.3.226:1111/api/music",{
+    axios.get("http://localhost:1111/api/music",{
         params:{
           userId:this.data.userId
         }
@@ -1694,5 +1725,186 @@ input[type="range"] {
   0% { transform: scale(1); }
   50% { transform: scale(1.2); }
   100% { transform: scale(1); }
+}
+
+.search-trigger {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+}
+
+.search-trigger input {
+  padding: 10px 15px;
+  width: 300px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+}
+
+.search-trigger button {
+  padding: 10px 20px;
+  background: #ff4e50;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.music-modal {
+  width: 90%;
+  max-width: 400px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: modalFadeIn 0.3s;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  padding: 15px 20px;
+  background-color: #ff4e50;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.search-result-content {
+  padding: 20px;
+}
+
+.result-count {
+  color: #666;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.song-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.song-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.song-item:hover {
+  background-color: #f9f9f9;
+}
+
+.song-item.active {
+  background-color: #fff0f0;
+}
+
+.song-cover {
+  width: 50px;
+  height: 50px;
+  border-radius: 5px;
+  margin-right: 15px;
+  object-fit: cover;
+}
+
+.song-info {
+  flex: 1;
+}
+
+.song-name {
+  color: #000;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.song-artist {
+  color: #666;
+  font-size: 14px;
+}
+
+.song-duration {
+  color: #666;
+  font-size: 13px;
+  margin-right: 15px;
+}
+
+.play-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #ff4e50;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.play-btn:hover {
+  background-color: #ff2e3e;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.no-result {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.play-mode-btn {
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 10px;
+}
+
+.play-mode-btn:hover {
+  color: #409EFF;
+  transform: scale(1.1);
+}
+
+/* 单曲循环特殊样式 */
+.play-mode-btn.el-icon-refresh {
+  animation: rotate 2s linear infinite;
 }
 </style>

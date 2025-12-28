@@ -14,12 +14,12 @@
     <router-link :to="{ path: '/api/music', query: { id: data!=null?data.userId:0 } }" class="del-decoration">
       <el-menu-item index="2" style="padding-right: 20px;">我的音乐</el-menu-item>
     </router-link>
-  <el-menu-item index="3" style="padding-right: 20px;">排行榜</el-menu-item>
-  <router-link to="/api/cal"><el-menu-item index="4" style="padding-right: 30px;">我也不知道填啥</el-menu-item></router-link>
+   <router-link :to="{path:'/api/ranking'}" class="del-decoration"><el-menu-item index="3" style="padding-right: 20px;">排行榜</el-menu-item></router-link>
+  <router-link :to="{path:'/api/upload'}" class="del-decoration"><el-menu-item index="4" style="padding-right: 20px;">上传音乐</el-menu-item></router-link>
   <div class="autocomplete-container">
     <el-autocomplete 
       class="inline-input"
-      v-model="Search"
+      v-model="searchQuery"
       :fetch-suggestions="querySearch"
       placeholder="请输入内容"
       @select="handleSelect"
@@ -83,6 +83,52 @@
           </div>
         </div>
         
+<div class="modal-mask" v-if="showModal" @click.self="closeModal">
+      <div class="music-modal">
+        <div class="modal-header">
+          <span>搜索结果</span>
+          <button class="close-btn" @click="closeModal">&times;</button>
+        </div>
+        
+        <div class="search-result-content">
+          <div class="result-count" v-if="!loading">
+            找到 {{ searchResults.length }} 条与 "{{ searchQuery }}" 相关的结果
+          </div>
+          
+          <div class="loading" v-if="loading">
+            正在搜索中...
+          </div>
+          
+          <div class="no-result" v-else-if="searchResults.length === 0">
+            没有找到相关歌曲
+          </div>
+          
+          <div class="song-list" v-else>
+            <div 
+              class="song-item" 
+              v-for="song,index in searchResults" 
+              :key="song.songId"
+              :class="{ active: currentSong && currentSong.songId === song.songId }"
+              @click="playSongTemp(song.songFilepath,index,0)"
+            >
+              <img :src="song.songImg" class="song-cover">
+              <div class="song-info">
+                <div class="song-name">{{ song.songName }}</div>
+                <div class="song-artist">{{ song.songSinger }} - {{ song.songAlbum }}</div>
+              </div>
+              <div class="song-duration">{{ formatDuration(song.songTime) }}</div>
+              <button 
+                class="play-btn"
+                @click.stop="playSongTemp(song.songFilepath,index,0)"
+              >
+                {{ currentSong && currentSong.songId === song.songId && isPlaying ? '❚❚' : '▶' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
         <ul class="message-list">
           <li 
             v-for="message in this.messages" 
@@ -155,6 +201,11 @@ import { EventBus } from '@/eventBus';
     name: 'MessageCenter',
     data() {
       return {
+        playMode: 1,
+        searchQuery: '',  // 默认搜索词
+      searchResults: [],    // 搜索结果
+      showModal: false,     // 是否显示弹框
+      loading: false,       // 是否正在加载
         commentShow:0,
         Nowcomment:{},
         replyShow:false,
@@ -225,7 +276,7 @@ import { EventBus } from '@/eventBus';
     },
     mounted(){
         this.data=JSON.parse(localStorage.getItem('User'));
-        axios.get("http://192.168.3.226:1111/api/message",
+        axios.get("http://localhost:1111/api/message",
         {
           params:{
             id:JSON.parse(localStorage.getItem('User')).userId,
@@ -273,6 +324,83 @@ import { EventBus } from '@/eventBus';
       }
     },
     methods: {
+       getPlayModeIcon() {
+      switch (this.playMode) {
+        case 0: return 'el-icon-refresh'; // 单曲循环
+        case 1: return 'el-icon-sort';    // 顺序播放
+        case 2: return 'el-icon-s-operation';    // 随机播放
+        default: return 'el-icon-sort';
+      }
+    },
+       togglePlayMode() {
+      // 循环切换播放模式：顺序 → 随机 → 单曲
+      this.playMode = (this.playMode + 1) % 3;
+      this.saveToLocalStorage();
+      
+      
+    },
+     getPlayModeTitle() {
+      switch (this.playMode) {
+        case 0: return '单曲循环';
+        case 1: return '顺序播放';
+        case 2: return '随机播放';
+        default: return '顺序播放';
+      }
+    },
+      FindSong()
+      { 
+        
+        if (!this.searchQuery.trim()) return
+      
+      this.loading = true
+      this.showModal = true
+      this.searchResults = [] // 清空之前的结果
+
+      this.currentSong=false;
+       axios.post("http://localhost:1111/api/history",{
+        name:this.searchQuery,
+        userId:this.data.userId
+      }).then(()=>{
+        console.log("搜索记录已保存");
+        
+      }); 
+
+
+      // 模拟API请求延迟
+      setTimeout(() => {
+      this.getMockData(this.searchQuery)
+        this.loading = false
+        }, 800)
+      },
+      getMockData(query) {
+        // 模拟搜索结果
+        axios.get("http://localhost:1111/api/search",{
+          params:{
+            name:query  
+          }
+        }).then((result)=>{
+          this.searchResults = result.data.data;
+          
+          console.log(this.searchResults);
+          
+        });
+        
+      },
+       formatDuration(seconds) {
+      const mins = Math.floor(seconds / 60)
+      const secs = seconds % 60
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+    },
+    playSongTemp(song,index,flag){
+      if(flag==1)
+      this.currentSong=false;
+    else
+     this.currentSong=true;
+       this.playSong(song,index);
+    },
+     closeModal() {
+      this.showModal = false
+    },
       handleNewMessage(data){
         console.log("全局消息:"+data);
         this.messages.push(JSON.parse(data));
@@ -339,12 +467,17 @@ import { EventBus } from '@/eventBus';
         // 调用 callback 返回建议列表的数据
         cb(results);
       },
+      createFilter(queryString) {
+        return (restaurant) => {
+          return (restaurant.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0);
+        };
+      },
       markAsRead(message) {
         if (!message.messageIsread) {
           message.messageIsread = true;
           console.log(message.messageId);
           
-          axios.put("http://192.168.3.226:1111/api/updataRead",{
+          axios.put("http://localhost:1111/api/updataRead",{
             messageId:message.messageId
           },{
              headers: {
@@ -370,7 +503,7 @@ import { EventBus } from '@/eventBus';
           type: 'warning'
         }).then(() => {
           this.messages = this.messages.filter(m => m.messageId !== message.messageId);
-        axios.delete("http://192.168.3.226:1111/api/delMessage",{
+        axios.delete("http://localhost:1111/api/delMessage",{
           data: {
         messageId: message.messageId, 
       },headers: {
@@ -735,6 +868,188 @@ body {
 .dark {
   background-color: #faf0e6; /* 更淡的米色 */
   color: white;
+}
+
+
+.search-trigger {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+}
+
+.search-trigger input {
+  padding: 10px 15px;
+  width: 300px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+}
+
+.search-trigger button {
+  padding: 10px 20px;
+  background: #ff4e50;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.music-modal {
+  width: 90%;
+  max-width: 400px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: modalFadeIn 0.3s;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  padding: 15px 20px;
+  background-color: #ff4e50;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.search-result-content {
+  padding: 20px;
+}
+
+.result-count {
+  color: #666;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.song-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.song-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.song-item:hover {
+  background-color: #f9f9f9;
+}
+
+.song-item.active {
+  background-color: #fff0f0;
+}
+
+.song-cover {
+  width: 50px;
+  height: 50px;
+  border-radius: 5px;
+  margin-right: 15px;
+  object-fit: cover;
+}
+
+.song-info {
+  flex: 1;
+}
+
+.song-name {
+  color: #000;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.song-artist {
+  color: #666;
+  font-size: 14px;
+}
+
+.song-duration {
+  color: #666;
+  font-size: 13px;
+  margin-right: 15px;
+}
+
+.play-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #ff4e50;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.play-btn:hover {
+  background-color: #ff2e3e;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.no-result {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.play-mode-btn {
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 10px;
+}
+
+.play-mode-btn:hover {
+  color: #409EFF;
+  transform: scale(1.1);
+}
+
+/* 单曲循环特殊样式 */
+.play-mode-btn.el-icon-refresh {
+  animation: rotate 2s linear infinite;
 }
   </style>
   
