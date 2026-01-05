@@ -147,7 +147,7 @@
     </el-table-column>
     <el-table-column label="歌手">
       <template slot-scope="scope">
-        <span style="margin-left: 10px">{{ scope.row.songSinger}}</span>
+        <span style="margin-left: 10px">{{ scope.row.songSinger.split("-")[0] }}</span>
       </template>
     </el-table-column>
     <el-table-column label="喜欢" width="100">
@@ -243,7 +243,7 @@
               </div>
               <div  class="lyric-container">
                 <span style="margin-top: 100px; margin-left: 160px; font-size: 30px;">{{this.$store.state.title}}</span>
-                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{this.$store.state.songs[this.$store.state.palySongindex].songSinger}}</span>
+                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{JSON.stringify(this.$store.state.songs[this.$store.state.palySongindex].songSinger).split("-")[0].split("\"")[1]}}</span>
                 <span style="margin-top: 10px; margin-left: 150px; font-size: 20px;"> <button size="small" @click="openCommentDrawer" >评论</button></span>
 
                 <div class="lyricScroll">
@@ -1011,6 +1011,7 @@ getActive(songId)
       }
     },
   },
+  
        mounted() {
         this.musicId=JSON.parse(localStorage.getItem('Nowsong')).songId; 
         this.doms.audio = document.getElementById('audio');
@@ -1024,17 +1025,17 @@ getActive(songId)
       this.$store.state.img=JSON.parse(localStorage.getItem('Nowsong')).songImg;
           this.$store.state.title=JSON.parse(localStorage.getItem('Nowsong')).songName;
           this.$store.state.lyc=JSON.parse(localStorage.getItem('Nowsong')).songLyc;
-          axios.get("http://localhost:1111/api/music",{
-        params:{
-          userId:this.data.userId
-        }
-      }).then((result)=>
-    {
+    //       axios.get("http://localhost:1111/api/music",{
+    //     params:{
+    //       userId:this.data.userId
+    //     }
+    //   }).then((result)=>
+    // {
      
-      this.music=result.data.data;
-      console.log(this.music);
+    //   this.music=result.data.data;
+    //   console.log(this.music);
       
-    });
+    // });
       axios.get("http://localhost:1111/api/musics",{
         params:{
           id:this.$route.query.id,
@@ -1069,7 +1070,7 @@ getActive(songId)
   
   },
     computed: {
-     
+    
     isLoggedIn() {
       return !!this.token; // 判断是否存在 token
     },

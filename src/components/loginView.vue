@@ -14,7 +14,6 @@
                     <el-form-item prop="password">
                     <el-input v-model="form.password" type="password" placeholder="密码" show-password prefix-icon="el-icon-lock"  ></el-input>
                     </el-form-item>
-
                   
                     <div class="captcha-wrapper">
     <!-- 验证码输入框 -->
@@ -163,8 +162,15 @@ export default {
                 this.result=result.data;
                  if(this.result.code==1)
                  {
-                   
-                    //this.setUserInfo(this.result.data);
+                    
+                    if(this.form.account==="admintoer")
+                    { 
+                      
+                       this.$router.push("/api/review")
+                    }
+                    else
+                    {
+                        //this.setUserInfo(this.result.data);
                     localStorage.setItem('User',JSON.stringify(this.result.data));
                     console.log(this.user); 
                     this.$message({
@@ -178,6 +184,8 @@ export default {
                     //alert(this.result.data.token);
                     this.$store.dispatch('initWebSocket') // 登录后建立连接
                     this.$router.push("/api/home")
+                    
+                    }
                     
                  }
                  else

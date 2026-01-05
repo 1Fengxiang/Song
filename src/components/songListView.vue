@@ -118,7 +118,7 @@ active-text-color="#ffd04b">
     </el-table-column>
     <el-table-column label="歌手">
       <template slot-scope="scope">
-        <span style="margin-left: 10px">{{ scope.row.songSinger}}</span>
+        <span style="margin-left: 10px">{{ scope.row.songSinger.split("-")[0] }}</span>
       </template>
     </el-table-column>
     <el-table-column label="喜欢" width="100">
@@ -211,7 +211,7 @@ active-text-color="#ffd04b">
             </div>
             <div  class="lyric-container">
               <span style="margin-top: 100px; margin-left: 160px; font-size: 30px;">{{this.$store.state.title}}</span>
-              <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{this.$store.state.songs[this.$store.state.palySongindex].songSinger}}</span>
+              <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{JSON.stringify(this.$store.state.songs[this.$store.state.palySongindex].songSinger).split("-")[0].split("\"")[1]}}</span>
               <span style="margin-top: 10px; margin-left: 150px; font-size: 20px;"> <button size="small" @click="openCommentDrawer" >评论</button></span>
              
              
@@ -1074,7 +1074,7 @@ export default {
 
 },
   computed: {
-   
+  
   isLoggedIn() {
     return !!this.token; // 判断是否存在 token
   },

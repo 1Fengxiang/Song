@@ -129,6 +129,34 @@
       </div>
     </div>
 
+         <el-dialog
+      
+        :visible.sync="replyShow"
+        :modal="false"
+        custom-class="custom-dialog"
+        style="text-align: center ;"
+        >
+        <span style="font-size: 20px;">回复评论</span>
+        <el-form>
+          <el-form-item  >
+            <el-input
+              v-model="replytext"
+              type="textarea"
+              :rows="4"              
+              :maxlength="140"         
+              autocomplete="off"
+              
+              :placeholder="'回复 : '" 
+            >
+            </el-input>
+          </el-form-item>
+        </el-form>
+        <div slot="footer" class="dialog-footer">
+          <el-button type="primary" @click="replySend">确 定</el-button>
+        </div>
+        </el-dialog>    
+
+
         <ul class="message-list">
           <li 
             v-for="message in this.messages" 
@@ -201,6 +229,7 @@ import { EventBus } from '@/eventBus';
     name: 'MessageCenter',
     data() {
       return {
+        
         playMode: 1,
         searchQuery: '',  // 默认搜索词
       searchResults: [],    // 搜索结果
@@ -324,6 +353,10 @@ import { EventBus } from '@/eventBus';
       }
     },
     methods: {
+       replySend()
+    { 
+      this.replyShow=false;
+    },
        getPlayModeIcon() {
       switch (this.playMode) {
         case 0: return 'el-icon-refresh'; // 单曲循环
@@ -489,10 +522,9 @@ import { EventBus } from '@/eventBus';
       }
       },
       replyTo(message) {
-        this.$message({
-          type: 'info',
-          message: `回复给: ${message.sender}\n原内容: ${message.replyTo.content}`
-        });
+        this.replyShow=true;
+        console.log(message);
+        
       },
       deleteMessage(message) {
        
@@ -1050,6 +1082,35 @@ body {
 /* 单曲循环特殊样式 */
 .play-mode-btn.el-icon-refresh {
   animation: rotate 2s linear infinite;
+}
+
+::v-deep .custom-dialog .el-dialog {
+  background-color: white !important; /* 设置对话框背景颜色 */
+  color: black !important; /* 设置文字颜色 */
+}
+
+/* 修改对话框的标题背景色 */
+::v-deep .custom-dialog .el-dialog__header {
+  background-color:  white !important; /* 设置标题背景 */
+  color: black !important; /* 设置标题文字颜色为白色 */
+}
+
+/* 修改对话框内容区域的背景色 */
+::v-deep .custom-dialog .el-dialog__body {
+  background-color:  white !important; /* 设置内容区背景 */
+  color: black !important; /* 设置文字颜色 */
+}
+
+/* 修改底部按钮区域的背景色 */
+::v-deep .custom-dialog .el-dialog__footer {
+  background-color:  white !important; /* 设置按钮区背景 */
+  color: black !important; /* 设置按钮文字颜色 */
+}
+
+::v-deep .custom-dialog .el-button {
+  background-color:  white !important; /* 修改按钮背景色 */
+  border-color:  white !important; /* 修改按钮边框颜色 */
+  color: black !important; /* 修改按钮文字颜色 */
 }
   </style>
   

@@ -21,7 +21,7 @@
         <!-- 歌曲基本信息 -->
         <div class="form-section">
           <h3 class="section-title">基本信息</h3>
-          <el-form-item label="歌曲名称" prop="reviewSongName">
+          <el-form-item label="歌曲名称" prop="reviewSongName" >
             <el-input v-model="song.reviewSongName" placeholder="请输入歌曲名称"></el-input>
           </el-form-item>
           
@@ -36,7 +36,7 @@
             </el-select>
           </el-form-item>
           
-          <el-form-item label="专辑" prop="reviewSongAlbum">
+          <el-form-item label="专辑" prop="reviewSongAlbum"  >
             <el-select v-model="song.reviewSongAlbum" filterable placeholder="请选择专辑">
               <el-option
                 v-for="album in albums"
@@ -67,14 +67,14 @@
             <el-upload
     class="upload-file"
     :auto-upload="false"
-  
+    action="#"
     :before-upload="beforeMusicUpload"
     :on-success="handleMusicSuccess"
     :on-error="handleMusicError"
     :limit="1"
     :show-file-list="true"
     accept="audio/*"
-    :on-progress="handleProgress"
+    
     :on-change="handleMusicChange"
     :file-list="fileList">
     <el-button size="small" type="primary">点击上传</el-button>
@@ -89,7 +89,7 @@
     <el-upload
       class="upload-image"
       :auto-upload="false"
-     
+      action="#"
       :before-upload="beforeImageUpload"
       :on-success="handleImageSuccess"
       :on-error="handleImageError"

@@ -94,7 +94,7 @@
         
         <div class="song-info">
           <h3 class="song-title">{{ song.songName }}</h3>
-          <p class="singer">{{ song.songSinger }}</p>
+          <p class="singer">{{ song.songSinger.split("-")[0] }}</p>
         </div>
         
         <div class="duration">{{ formatTime(song.songTime) }}</div>
@@ -217,7 +217,7 @@
           </div>
             <div  class="lyric-container">
                 <span style="margin-top: 100px; margin-left: 160px; font-size: 30px;">{{this.$store.state.title}}</span>
-                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{this.$store.state.songs[this.$store.state.palySongindex].songSinger}}</span>
+                <span style="margin-top: 10px; margin-left: 160px; font-size: 20px;">歌手:{{JSON.stringify(this.$store.state.songs[this.$store.state.palySongindex].songSinger).split("-")[0].split("\"")[1]}}</span>
                 <span style="margin-top: 10px; margin-left: 150px; font-size: 20px;"> <button size="small" @click="openCommentDrawer" >评论</button></span>
                 
                 <div class="lyricScroll">
@@ -416,6 +416,41 @@ export default {
     }
   },
   computed: {
+    displaySinger() {
+    const songs = this.$store.state.songs;
+      const index = this.$store.state.playSongIndex;
+      
+      // 检查数组和索引是否有效
+      if (!Array.isArray(songs) || !songs.length || index < 0 || index >= songs.length) {
+        return '未知歌手';
+      }
+      
+      const currentSong = songs[index];
+      if (!currentSong) return '未知歌手';
+      
+      const singer = currentSong.songSinger;
+      
+      // 如果 singer 不存在或者是空值
+      if (!singer) return '未知歌手';
+      
+      // 如果是字符串
+      if (typeof singer === 'string') {
+        return singer.split('/')[0] || singer;
+      }
+      
+      // 如果是数组
+      if (Array.isArray(singer)) {
+        return singer[0] || '未知歌手';
+      }
+      
+      // 如果是对象
+      if (typeof singer === 'object') {
+        return singer.name || singer.singerName || '未知歌手';
+      }
+      
+      // 其他类型转为字符串
+      return String(singer) || '未知歌手';
+    },
     filteredSongs() {
     
       if (this.currentTab === 'all') return this.allsongs;
@@ -1095,6 +1130,9 @@ getActive(songId)
       };
     }
   },
+  
+  
+
   mounted(){
     this.data=JSON.parse(localStorage.getItem('User')) || {};
     axios.get("http://localhost:1111/api/home").then((result)=>
